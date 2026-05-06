@@ -1,9 +1,9 @@
 import argparse
 import csv
+import json
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-
 
 DEFAULT_INPUT_FILE = Path("data/products_feed.csv")
 DEFAULT_REJECTS_FILE = Path("data/products_rejected.csv")
@@ -45,11 +45,19 @@ class EtlResult:
     total_inventory_value: int = 0
 
 
-def extract_products(csv_path):
-    csv_path = Path(csv_path)
-    with csv_path.open("r", encoding="utf-8", newline="") as file:
-        reader = csv.DictReader(file)
-        return list(reader)
+def extract_products(file_path) -> list:
+    file_path = Path(file_path)
+
+    if file_path.suffix.lower() == ".json":
+        with file_path.open("r", encoding="utf-8") as file:
+            data = json.load(file)
+            return data
+    elif file_path.suffix.lower() == ".csv":
+        with file_path.open("r", encoding="utf-8", newline="") as file:
+            reader = csv.DictReader(file)
+            return list(reader)
+    else:
+        raise ValueError(f"Nieobsługiwany format pliku: {file_path.suffix}. Obsługiwane to .csv oraz .json")
 
 
 def normalize_text(value):
@@ -164,7 +172,7 @@ def get_or_create_category(session, name):
 
     category_id = fetch_one_id(
         session,
-        text("select kategoriaid from kategoria where lower(nazwa) = lower(:name) limit 1"),
+        text("SELECT kategoriaid FROM kategoria WHERE LOWER(nazwa) = LOWER(:name) LIMIT 1"),
         {"name": name},
     )
     if category_id:
@@ -174,9 +182,8 @@ def get_or_create_category(session, name):
         session,
         text(
             """
-            insert into kategoria (kategoriaid, nazwa)
-            values ((select coalesce(max(kategoriaid), 0) + 1 from kategoria), :name)
-            returning kategoriaid
+            INSERT INTO kategoria (kategoriaid, nazwa)
+            VALUES ((SELECT COALESCE(MAX(kategoriaid), 0) + 1 FROM kategoria), :name) returning kategoriaid
             """
         ),
         {"name": name},
@@ -188,7 +195,7 @@ def get_or_create_producer(session, name, country):
 
     producer_id = fetch_one_id(
         session,
-        text("select producentid from producent where lower(nazwa) = lower(:name) limit 1"),
+        text("SELECT producentid FROM producent WHERE LOWER(nazwa) = LOWER(:name) LIMIT 1"),
         {"name": name},
     )
     if producer_id:
@@ -198,9 +205,8 @@ def get_or_create_producer(session, name, country):
         session,
         text(
             """
-            insert into producent (producentid, nazwa, kraj)
-            values ((select coalesce(max(producentid), 0) + 1 from producent), :name, :country)
-            returning producentid
+            INSERT INTO producent (producentid, nazwa, kraj)
+            VALUES ((SELECT COALESCE(MAX(producentid), 0) + 1 FROM producent), :name, :country) returning producentid
             """
         ),
         {"name": name, "country": country or None},
@@ -238,7 +244,6 @@ def validate_database_privileges(session):
 
 def load_products(products):
     from sqlalchemy import text
-
     from db import SessionLocal
 
     session = SessionLocal()
@@ -259,11 +264,10 @@ def load_products(products):
                 session,
                 text(
                     """
-                    select produktid
-                    from produkt
-                    where lower(nazwa) = lower(:name)
-                      and producentid = :producer_id
-                    limit 1
+                    SELECT produktid
+                    FROM produkt
+                    WHERE LOWER(nazwa) = LOWER(:name)
+                      AND producentid = :producer_id limit 1
                     """
                 ),
                 {"name": product.nazwa, "producer_id": producer_id},
@@ -273,12 +277,12 @@ def load_products(products):
                 session.execute(
                     text(
                         """
-                        update produkt
-                        set cena = :price,
+                        UPDATE produkt
+                        SET cena           = :price,
                             stanmagazynowy = :stock,
-                            kategoriaid = :category_id,
-                            producentid = :producer_id
-                        where produktid = :product_id
+                            kategoriaid    = :category_id,
+                            producentid    = :producer_id
+                        WHERE produktid = :product_id
                         """
                     ),
                     {
@@ -294,22 +298,18 @@ def load_products(products):
                 session.execute(
                     text(
                         """
-                        insert into produkt (
-                            produktid,
-                            nazwa,
-                            cena,
-                            stanmagazynowy,
-                            kategoriaid,
-                            producentid
-                        )
-                        values (
-                            (select coalesce(max(produktid), 0) + 1 from produkt),
-                            :name,
-                            :price,
-                            :stock,
-                            :category_id,
-                            :producer_id
-                        )
+                        INSERT INTO produkt (produktid,
+                                             nazwa,
+                                             cena,
+                                             stanmagazynowy,
+                                             kategoriaid,
+                                             producentid)
+                        VALUES ((SELECT COALESCE(MAX(produktid), 0) + 1 FROM produkt),
+                                :name,
+                                :price,
+                                :stock,
+                                :category_id,
+                                :producer_id)
                         """
                     ),
                     {
@@ -335,8 +335,8 @@ def load_products(products):
         session.close()
 
 
-def run_etl(csv_path=DEFAULT_INPUT_FILE, dry_run=False, rejects_file=DEFAULT_REJECTS_FILE):
-    rows = extract_products(csv_path)
+def run_etl(file_path=DEFAULT_INPUT_FILE, dry_run=False, rejects_file=DEFAULT_REJECTS_FILE):
+    rows = extract_products(file_path)
     products, rejected = transform_products(rows)
 
     result = EtlResult(
@@ -361,8 +361,8 @@ def run_etl(csv_path=DEFAULT_INPUT_FILE, dry_run=False, rejects_file=DEFAULT_REJ
 
 
 def main():
-    parser = argparse.ArgumentParser(description="ETL: zaawansowany import produktow z CSV.")
-    parser.add_argument("--file", default=DEFAULT_INPUT_FILE, help="Sciezka do pliku CSV z produktami.")
+    parser = argparse.ArgumentParser(description="ETL: zaawansowany import produktow z pliku CSV lub JSON.")
+    parser.add_argument("--file", default=DEFAULT_INPUT_FILE, help="Sciezka do pliku (.csv lub .json) z produktami.")
     parser.add_argument("--dry-run", action="store_true", help="Wykonaj extract i transform bez zapisu do bazy.")
     parser.add_argument(
         "--rejects-file",
@@ -377,7 +377,7 @@ def main():
         print(f"Error: {error}", file=sys.stderr)
         sys.exit(1)
 
-    print("ETL scenario: zaawansowany import produktow z CSV")
+    print("ETL scenario: zaawansowany import produktow")
     print(f"Extracted rows: {result.extracted}")
     print(f"Transformed products: {result.transformed}")
     print(f"Skipped rows: {result.skipped}")

@@ -1,0 +1,56 @@
+[
+    {
+        "nazwa": "Smartfon Galaxy S23",
+        "cena": 3499,
+        "stanmagazynowy": 45,
+        "kategoria": "Telefony",
+        "producent": "Samsung",
+        "kraj_producenta": "Korea Poludniowa",
+        "aktywny": "tak"
+    },
+    {
+        "nazwa": "Ekspres do kawy Magnifica",
+        "cena": 1750,
+        "stanmagazynowy": 12,
+        "kategoria": "AGD",
+        "producent": "DeLonghi",
+        "kraj_producenta": "Wlochy",
+        "aktywny": "true"
+    },
+    {
+        "nazwa": "Rower gorski Talon 29",
+        "cena": 3100,
+        "stanmagazynowy": 7,
+        "kategoria": "Sport",
+        "producent": "Giant",
+        "kraj_producenta": "Tajwan",
+        "aktywny": "1"
+    },
+    {
+        "nazwa": "Sluchawki bezprzewodowe WH-1000XM5",
+        "cena": 1399,
+        "stanmagazynowy": 22,
+        "kategoria": "Audio",
+        "producent": "Sony",
+        "kraj_producenta": "Japonia",
+        "aktywny": "yes"
+    },
+    {
+        "nazwa": "Biurko gamingowe PRO",
+        "cena": 850,
+        "stanmagazynowy": 15,
+        "kategoria": "Meble",
+        "producent": "Ultradesk",
+        "kraj_producenta": "Polska",
+        "aktywny": "y"
+    },
+    {
+        "nazwa": "Archiwalny model glosnika",
+        "cena": 499,
+        "stanmagazynowy": 0,
+        "kategoria": "Audio",
+        "producent": "JBL",
+        "kraj_producenta": "USA",
+        "aktywny": "nie"
+    }
+]
