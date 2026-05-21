@@ -243,94 +243,51 @@ def validate_database_privileges(session):
 
 
 def load_products(products):
-    from sqlalchemy import text
     from db import SessionLocal
 
+    from services import synchronize_product
+
     session = SessionLocal()
-    result = EtlResult(transformed=len(products))
+
+    result = EtlResult(
+        transformed=len(products)
+    )
 
     try:
+
         validate_database_privileges(session)
 
         for product in products:
-            category_id, category_created = get_or_create_category(session, product.kategoria)
-            producer_id, producer_created = get_or_create_producer(
+
+            stats = synchronize_product(
                 session,
-                product.producent,
-                product.kraj_producenta,
+                product
             )
 
-            existing_product_id = fetch_one_id(
-                session,
-                text(
-                    """
-                    SELECT produktid
-                    FROM produkt
-                    WHERE LOWER(nazwa) = LOWER(:name)
-                      AND producentid = :producer_id limit 1
-                    """
-                ),
-                {"name": product.nazwa, "producer_id": producer_id},
+            result.inserted += stats["inserted"]
+            result.updated += stats["updated"]
+
+            result.categories_created += (
+                stats["category_created"]
             )
 
-            if existing_product_id:
-                session.execute(
-                    text(
-                        """
-                        UPDATE produkt
-                        SET cena           = :price,
-                            stanmagazynowy = :stock,
-                            kategoriaid    = :category_id,
-                            producentid    = :producer_id
-                        WHERE produktid = :product_id
-                        """
-                    ),
-                    {
-                        "price": product.cena,
-                        "stock": product.stanmagazynowy,
-                        "category_id": category_id,
-                        "producer_id": producer_id,
-                        "product_id": existing_product_id,
-                    },
-                )
-                result.updated += 1
-            else:
-                session.execute(
-                    text(
-                        """
-                        INSERT INTO produkt (produktid,
-                                             nazwa,
-                                             cena,
-                                             stanmagazynowy,
-                                             kategoriaid,
-                                             producentid)
-                        VALUES ((SELECT COALESCE(MAX(produktid), 0) + 1 FROM produkt),
-                                :name,
-                                :price,
-                                :stock,
-                                :category_id,
-                                :producer_id)
-                        """
-                    ),
-                    {
-                        "name": product.nazwa,
-                        "price": product.cena,
-                        "stock": product.stanmagazynowy,
-                        "category_id": category_id,
-                        "producer_id": producer_id,
-                    },
-                )
-                result.inserted += 1
-
-            result.categories_created += int(category_created)
-            result.producers_created += int(producer_created)
+            result.producers_created += (
+                stats["producer_created"]
+            )
 
         session.commit()
-        result.loaded = result.inserted + result.updated
+
+        result.loaded = (
+            result.inserted +
+            result.updated
+        )
+
         return result
+
     except Exception:
         session.rollback()
         raise
+
     finally:
         session.close()
 
