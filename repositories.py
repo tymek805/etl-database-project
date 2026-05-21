@@ -1,5 +1,5 @@
 from sqlalchemy import func
-from models import Produkt, Kategoria, Producent
+from models import Produkt, Kategoria, Producent, Klient, AdrKlienta
 
 
 def get_category_by_name(session, name):
@@ -64,6 +64,55 @@ def get_existing_product(session, name, producer_id):
         .filter(
             func.lower(Produkt.nazwa) == name.lower(),
             Produkt.producentid == producer_id
+        )
+        .first()
+    )
+
+
+def get_existing_address(
+    session,
+    city,
+    street,
+    postal_code,
+    country
+):
+    return (
+        session.query(AdrKlienta)
+        .filter(
+            func.lower(AdrKlienta.miejscowosck) == city.lower(),
+            func.lower(AdrKlienta.ulica) == street.lower(),
+            func.lower(AdrKlienta.krajk) == country.lower(),
+            AdrKlienta.kodpocztowyk == postal_code
+        )
+        .first()
+    )
+
+
+def create_address(
+    session,
+    city,
+    street,
+    postal_code,
+    country
+):
+    address = AdrKlienta(
+        miejscowosck=city,
+        ulica=street,
+        kodpocztowyk=postal_code,
+        krajk=country
+    )
+
+    session.add(address)
+    session.flush()
+
+    return address
+
+
+def get_customer_by_email(session, email):
+    return (
+        session.query(Klient)
+        .filter(
+            func.lower(Klient.email) == email.lower()
         )
         .first()
     )

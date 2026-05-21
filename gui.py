@@ -5,6 +5,12 @@ import traceback
 import etl_products
 
 
+SCENARIOS = {
+    "Products Import": "products",
+    "Customers Import": "customers",
+}
+
+
 class ETLApp:
     def __init__(self, root):
         self.root = root
@@ -15,12 +21,40 @@ class ETLApp:
         self.input_file_var = tk.StringVar(value=str(etl_products.DEFAULT_INPUT_FILE))
         self.rejects_file_var = tk.StringVar(value=str(etl_products.DEFAULT_REJECTS_FILE))
         self.dry_run_var = tk.BooleanVar(value=False)
+        self.scenario_var = tk.StringVar(value="products")
 
         self._build_ui()
 
     def _build_ui(self):
         main_frame = ttk.Frame(self.root, padding="20")
         main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # --- Scenario Selection Section ---
+        scenario_frame = ttk.LabelFrame(
+            main_frame,
+            text=" ETL Scenario ",
+            padding="10"
+        )
+
+        scenario_frame.pack(fill=tk.X, pady=(0, 15))
+
+        ttk.Label(
+            scenario_frame,
+            text="Scenario:"
+        ).pack(side=tk.LEFT)
+
+        scenario_dropdown = ttk.Combobox(
+            scenario_frame,
+            textvariable=self.scenario_var,
+            values=[
+                "products",
+                "customers"
+            ],
+            state="readonly",
+            width=30
+        )
+
+        scenario_dropdown.pack(side=tk.LEFT, padx=10)
 
         # --- File Selection Section ---
         file_frame = ttk.LabelFrame(main_frame, text=" File Configuration ", padding="10")
@@ -112,30 +146,32 @@ class ETLApp:
         self.root.update()
 
         try:
-            result = etl_products.run_etl(
+            scenario = self.scenario_var.get()
+            
+            if scenario == "products":
+                import etl_products as etl_module
+
+            elif scenario == "customers":
+                import etl_customers as etl_module
+
+            else:
+                raise ValueError(f"Unknown scenario: {scenario}")
+                
+            result = etl_module.run_etl(
                 file_path=input_file,
                 dry_run=is_dry_run,
                 rejects_file=rejects_file
             )
 
             self._log("\n--- ETL Scenario Completed Successfully ---")
-            self._log(f"Extracted rows:       {result.extracted}")
-            self._log(f"Transformed products: {result.transformed}")
-            self._log(f"Skipped rows:         {result.skipped}")
 
-            if not is_dry_run:
-                self._log(f"Loaded products:      {result.loaded}")
-                self._log(f"Inserted products:    {result.inserted}")
-                self._log(f"Updated products:     {result.updated}")
-                self._log(f"Created categories:   {result.categories_created}")
-                self._log(f"Created producers:    {result.producers_created}")
-            else:
-                self._log("\n(Database operations skipped due to Dry Run)")
+            for line in result.summary():
+                self._log(line)
 
-            self._log(f"Total inventory value:{result.total_inventory_value}")
-
-            if result.rejected_file:
-                self._log(f"\nRejected rows report saved to:\n{result.rejected_file}")
+            if is_dry_run:
+                self._log(
+                    "\n(Database operations skipped due to Dry Run)"
+                )
 
             messagebox.showinfo("Success", "ETL Process completed successfully!")
 

@@ -44,6 +44,35 @@ class EtlResult:
     rejected_file: str | None = None
     total_inventory_value: int = 0
 
+    def summary(self):
+
+        lines = [
+            f"Extracted rows:       {self.extracted}",
+            f"Transformed products: {self.transformed}",
+            f"Skipped rows:         {self.skipped}",
+        ]
+
+        if self.loaded:
+            lines.extend([
+                f"Loaded products:      {self.loaded}",
+                f"Inserted products:    {self.inserted}",
+                f"Updated products:     {self.updated}",
+                f"Created categories:   {self.categories_created}",
+                f"Created producers:    {self.producers_created}",
+            ])
+
+        lines.append(
+            f"Total inventory value:{self.total_inventory_value}"
+        )
+
+        if self.rejected_file:
+            lines.append("")
+            lines.append(
+                f"Rejected rows report saved to:\n{self.rejected_file}"
+            )
+
+        return lines
+
 
 def extract_products(file_path) -> list:
     file_path = Path(file_path)
