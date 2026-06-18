@@ -67,8 +67,8 @@ python etl_products.py
 Projekt zawiera proces ETL w pliku `etl_customers.py`.
 
 - Extract: odczyt danych z `data/customers_feed.csv` albo pliku JSON o tych samych polach.
-- Transform: oczyszczenie imienia, nazwiska, emaila, telefonu i danych adresowych oraz konwersja telefonu na liczbe.
-- Validation: rekordy, ktorych nie da sie sparsowac, sa pomijane na etapie transformacji.
+- Transform: oczyszczenie imienia, nazwiska, emaila, telefonu i danych adresowych, konwersja telefonu na liczbe oraz dopasowanie miasta do slownika `data/polskie_miejscowosci.json`.
+- Validation: rekordy, ktorych nie da sie sparsowac albo ktorych miasta nie pasuja do slownika, sa odrzucane do raportu `data/customers_rejected.csv`.
 - Load: wyszukanie lub utworzenie adresu w tabeli `adrklienta`, a nastepnie dodanie albo aktualizacja klienta w tabeli `klient` po adresie email.
 
 Plik wejsciowy:
@@ -79,6 +79,17 @@ Liliana,Wisniewska,lilwis@test.pl,821885951,Biala Podlaska,Powstancow Wielkopols
 ```
 
 Scenariusz jest dostepny w dashboardzie po wybraniu `Customers Import`.
+
+Slownik miejscowosci pochodzi z repozytorium `jjbartek/polskie-miejscowosci`: https://github.com/jjbartek/polskie-miejscowosci. Plik zrodlowy zawiera miejscowosci z PRNG w formacie JSON z polami `Name`, `Type`, `Province`, `District` i `Commune`.
+
+Algorytm dopasowania:
+
+- Exact/normalized match: ignoruje wielkosc liter, polskie znaki i nadmiarowe spacje, np. `Krakow` -> `Kraków`.
+- Fuzzy auto match: jesli najlepszy kandydat jest wystarczajaco podobny i jednoznacznie lepszy od kolejnego, ETL poprawia miasto automatycznie.
+- Uncertain match: jesli istnieja podobne kandydaty, ale dopasowanie nie jest jednoznaczne, dashboard pokazuje sugestie i czeka na decyzje uzytkownika. Do czasu decyzji import klientow nie zapisuje zmian do bazy.
+- Reject: jesli nie ma sensownego kandydata, rekord trafia do raportu odrzuconych rekordow.
+
+Dashboard pokazuje liczbe automatycznych korekt miast, tabele korekt oraz osobny formularz dla niepewnych dopasowan. W formularzu mozna zaakceptowac jedna z sugestii slownika albo odrzucic rekord.
 
 ### Scenariusz ETL: aktualizacja stanow magazynowych
 

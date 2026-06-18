@@ -99,12 +99,138 @@ def render_schema_graph(scenario_type):
             "The Customers ETL process normalizes addresses into the AdrKlienta table and links them to the Klient table.")
 
 
+def render_customer_result(result, dry_run):
+    st.subheader("📊 Execution Statistics")
+    c1, c2, c3, c4, c5, c6 = st.columns(6)
+    c1.metric("Rows Extracted", result.extracted)
+    c2.metric("Customers Transformed", result.transformed)
+    c3.metric("Loaded to DB", result.loaded if not dry_run else "Skipped (Dry Run)")
+    c4.metric("City Corrections", result.city_corrections)
+    c5.metric("Pending Cities", result.pending_city_matches)
+    c6.metric(
+        "Skipped",
+        result.skipped,
+        delta_color="inverse" if result.skipped > 0 else "normal"
+    )
+
+    if result.needs_city_confirmation:
+        st.warning(
+            "Some city matches are ambiguous. Review suggestions below before loading customers."
+        )
+
+    st.write("### Database Entity Updates")
+    st.write(f"🟢 **Inserted Customers:** {result.inserted}")
+    st.write(f"🔄 **Updated Customers:** {result.updated}")
+
+    if result.city_corrections > 0:
+        st.write("### City Dictionary Corrections")
+        corrections_df = pd.DataFrame(result.city_correction_details)
+        st.dataframe(corrections_df, width="stretch")
+
+    if result.skipped > 0 and result.rejected_file and os.path.exists(result.rejected_file):
+        st.error(f"{result.skipped} customer rows were rejected during validation.")
+        rejects_df = pd.read_csv(result.rejected_file)
+        st.dataframe(rejects_df, width="stretch")
+
+        with open(result.rejected_file, "rb") as f:
+            st.download_button(
+                label="Download Customer Rejects Report (.csv)",
+                data=f,
+                file_name="customers_rejected.csv",
+                mime="text/csv"
+            )
+
+
+def render_customer_city_confirmation(tmp_path, dry_run, upload_signature):
+    pending_matches = st.session_state.get("customer_pending_city_matches")
+
+    if not pending_matches:
+        return
+
+    st.divider()
+    st.write("### Confirm City Matches")
+    st.caption("Choose the correct dictionary entry or reject the source row.")
+
+    decisions = {}
+
+    with st.form("customer_city_match_form"):
+        for pending_match in pending_matches:
+            labels = []
+            values = []
+
+            for suggestion in pending_match["suggestions"]:
+                labels.append(
+                    f"{suggestion['city']} | {suggestion['confidence']:.3f} | "
+                    f"{suggestion['province']} | {suggestion['type']}"
+                )
+                values.append(suggestion["city"])
+
+            labels.append("Reject row")
+            values.append(etl_customers.CITY_REJECT_DECISION)
+
+            selected_label = st.selectbox(
+                f"Row {pending_match['row_number']}: {pending_match['original_city']}",
+                labels,
+                key=f"city_match_{pending_match['row_number']}_{pending_match['original_city']}"
+            )
+            decisions[pending_match["row_number"]] = values[
+                labels.index(selected_label)
+            ]
+
+        submitted = st.form_submit_button(
+            "Apply decisions and run Customers ETL"
+        )
+
+    if submitted:
+        rejects_path = f"{tmp_path}_rejects.csv"
+        result = etl_customers.run_etl(
+            file_path=tmp_path,
+            dry_run=dry_run,
+            rejects_file=rejects_path,
+            city_decisions=decisions
+        )
+
+        render_customer_result(result, dry_run)
+
+        if result.needs_city_confirmation:
+            st.session_state["customer_pending_city_matches"] = (
+                result.pending_city_match_details
+            )
+            st.session_state["customer_pending_upload_signature"] = (
+                upload_signature
+            )
+            st.info(
+                "Customers import is waiting for city confirmation. No database changes were written."
+            )
+        else:
+            st.session_state.pop("customer_pending_city_matches", None)
+            st.session_state.pop("customer_pending_upload_signature", None)
+            if dry_run:
+                st.warning(
+                    "ℹ️ **Dry Run completed.** Data was validated but no changes were committed to the database."
+                )
+            else:
+                st.success(
+                    "✅ **ETL Process completed successfully!** Database synchronization is complete."
+                )
+
+
 # --- Main Workspace ---
 if uploaded_file:
     ext = os.path.splitext(uploaded_file.name)[1].lower()
+    uploaded_bytes = uploaded_file.getvalue()
+    upload_signature = f"{uploaded_file.name}:{len(uploaded_bytes)}"
+
+    if (
+        scenario == "Customers Import"
+        and st.session_state.get("customer_pending_upload_signature")
+        not in (None, upload_signature)
+    ):
+        st.session_state.pop("customer_pending_city_matches", None)
+        st.session_state.pop("customer_pending_upload_signature", None)
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
-        tmp.write(uploaded_file.getvalue())
+        tmp.write(uploaded_bytes)
         tmp_path = tmp.name
 
     col1, col2 = st.columns([2, 1])
@@ -213,24 +339,32 @@ if uploaded_file:
 
                 # --- CUSTOMERS SCENARIO ---
                 elif scenario == "Customers Import":
+                    rejects_path = f"{tmp_path}_rejects.csv"
                     result = etl_customers.run_etl(
                         file_path=tmp_path,
-                        dry_run=dry_run
+                        dry_run=dry_run,
+                        rejects_file=rejects_path
                     )
 
-                    st.subheader("📊 Execution Statistics")
-                    c1, c2, c3, c4 = st.columns(4)
-                    c1.metric("Rows Extracted", result.extracted)
-                    c2.metric("Customers Transformed", result.transformed)
-                    c3.metric("Loaded to DB", result.loaded if not dry_run else "Skipped (Dry Run)")
-                    c4.metric("Skipped", result.skipped, delta_color="inverse" if result.skipped > 0 else "normal")
+                    render_customer_result(result, dry_run)
 
-                    st.write("### Database Entity Updates")
-                    st.write(f"🟢 **Inserted Customers:** {result.inserted}")
-                    st.write(f"🔄 **Updated Customers:** {result.updated}")
+                    if result.needs_city_confirmation:
+                        st.session_state["customer_pending_city_matches"] = (
+                            result.pending_city_match_details
+                        )
+                        st.session_state["customer_pending_upload_signature"] = (
+                            upload_signature
+                        )
+                    else:
+                        st.session_state.pop("customer_pending_city_matches", None)
+                        st.session_state.pop("customer_pending_upload_signature", None)
 
                 # --- SUCCESS / WARNING BANNERS ---
-                if dry_run:
+                if getattr(result, "needs_city_confirmation", False):
+                    st.info(
+                        "Customers import is waiting for city confirmation. No database changes were written."
+                    )
+                elif dry_run:
                     st.warning(
                         "ℹ️ **Dry Run completed.** Data was validated but no changes were committed to the database.")
                 else:
@@ -241,6 +375,9 @@ if uploaded_file:
             finally:
                 if os.path.exists(tmp_path):
                     os.remove(tmp_path)
+
+    if scenario == "Customers Import":
+        render_customer_city_confirmation(tmp_path, dry_run, upload_signature)
 
 else:
     st.info("👈 Please select a scenario and upload a data feed file from the sidebar to begin.")
