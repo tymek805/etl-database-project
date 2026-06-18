@@ -9,7 +9,7 @@ pip install -r .\requirements.txt
 ### Uruchomienie:
 
 ```
-python.exe main.py
+streamlit run dashboard.py
 ```
 
 ### Połączenie z bazą danych:
