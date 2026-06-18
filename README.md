@@ -12,6 +12,22 @@ pip install -r .\requirements.txt
 streamlit run dashboard.py
 ```
 
+### Budowa aplikacji EXE:
+
+Projekt mozna zbudowac jako aplikacje Windows przez PyInstaller. Wersja EXE uruchamia lokalny serwer Streamlit i otwiera dashboard w przegladarce.
+
+```
+.\build_exe.ps1
+```
+
+Gotowy plik znajduje sie tutaj:
+
+```
+dist\etl-dashboard\etl-dashboard.exe
+```
+
+Przed uruchomieniem EXE umiesc obok niego plik `.env` z `DATABASE_URL`. Baza PostgreSQL nie jest pakowana do aplikacji i musi dzialac osobno. Slownik miejscowosci `data/polskie_miejscowosci.json` jest pakowany do EXE automatycznie.
+
 ### Połączenie z bazą danych:
 
 Umieść w folderze plik .env - przykładowa zawartość:

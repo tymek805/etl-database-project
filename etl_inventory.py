@@ -1,6 +1,7 @@
 import argparse
 import csv
 import json
+import os
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -8,8 +9,9 @@ from pathlib import Path
 import pandas as pd
 
 
-DEFAULT_INPUT_FILE = Path("data/inventory_updates_feed.xlsx")
-DEFAULT_REJECTS_FILE = Path("data/inventory_updates_rejected.csv")
+DATA_DIR = Path(os.getenv("ETL_DATA_DIR", "data"))
+DEFAULT_INPUT_FILE = DATA_DIR / "inventory_updates_feed.xlsx"
+DEFAULT_REJECTS_FILE = DATA_DIR / "inventory_updates_rejected.csv"
 
 
 @dataclass

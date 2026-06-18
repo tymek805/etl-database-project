@@ -1,12 +1,14 @@
 import argparse
 import csv
 import json
+import os
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
-DEFAULT_INPUT_FILE = Path("data/products_feed.csv")
-DEFAULT_REJECTS_FILE = Path("data/products_rejected.csv")
+DATA_DIR = Path(os.getenv("ETL_DATA_DIR", "data"))
+DEFAULT_INPUT_FILE = DATA_DIR / "products_feed.csv"
+DEFAULT_REJECTS_FILE = DATA_DIR / "products_rejected.csv"
 
 ACTIVE_VALUES = {"tak", "true", "1", "yes", "y"}
 

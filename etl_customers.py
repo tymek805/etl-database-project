@@ -1,6 +1,7 @@
 import csv
 import difflib
 import json
+import os
 import unicodedata
 from difflib import SequenceMatcher
 from dataclasses import dataclass, field
@@ -11,9 +12,10 @@ from db import SessionLocal
 from services import synchronize_customer
 
 
-DEFAULT_INPUT_FILE = Path("data/customers_feed.csv")
-DEFAULT_REJECTS_FILE = Path("data/customers_rejected.csv")
-DEFAULT_CITY_DICTIONARY_FILE = Path("data/polskie_miejscowosci.json")
+DATA_DIR = Path(os.getenv("ETL_DATA_DIR", "data"))
+DEFAULT_INPUT_FILE = DATA_DIR / "customers_feed.csv"
+DEFAULT_REJECTS_FILE = DATA_DIR / "customers_rejected.csv"
+DEFAULT_CITY_DICTIONARY_FILE = DATA_DIR / "polskie_miejscowosci.json"
 CITY_REJECT_DECISION = "__reject__"
 CITY_AUTO_MATCH_THRESHOLD = 0.90
 CITY_UNCERTAIN_MATCH_THRESHOLD = 0.78
