@@ -6,6 +6,7 @@ import os
 # Import your existing ETL logic
 import etl_products
 import etl_customers
+import etl_inventory
 
 # --- Page Configuration ---
 st.set_page_config(
@@ -24,16 +25,19 @@ with st.sidebar:
 
     scenario = st.selectbox(
         "Select ETL Scenario",
-        ["Products Import", "Customers Import"]
+        ["Products Import", "Customers Import", "Inventory Update"]
     )
 
     st.divider()
 
     dry_run = st.checkbox("Dry Run (Validate only, no DB save)", value=True)
 
+    file_types = ["xlsx"] if scenario == "Inventory Update" else ["csv", "json"]
+    file_types_label = ", ".join(f".{file_type}" for file_type in file_types)
+
     uploaded_file = st.file_uploader(
-        "Upload Data Feed (.csv, .json)",
-        type=["csv", "json"]
+        f"Upload Data Feed ({file_types_label})",
+        type=file_types
     )
 
 
@@ -58,6 +62,24 @@ def render_schema_graph(scenario_type):
         """
         st.graphviz_chart(graph_code)
         st.caption("The Products ETL process splits the flat feed into Kategoria, Producent, and Produkt tables.")
+
+    elif scenario_type == "Inventory Update":
+        graph_code = """
+        digraph InventorySchema {
+            rankdir=LR;
+            node [shape=record, style=filled, fillcolor="#f0f2f6", fontname="Helvetica"];
+            edge [fontname="Helvetica", fontsize=10, color="#7d8597"];
+
+            Producent [label="{Producent | producentid (PK)\\nnazwa\\nkraj}"];
+            Produkt [label="{Produkt | produktid (PK)\\nnazwa\\ncena\\nstanmagazynowy\\nproducentid (FK)}", fillcolor="#e0e5ec"];
+            Korekta [label="{Excel Feed | nazwa\\nproducent\\nzmiana_stanu\\npowod}", fillcolor="#fff4d6"];
+
+            Producent -> Produkt [label=" 1 : N", dir=forward];
+            Korekta -> Produkt [label=" update stock", style=dashed];
+        }
+        """
+        st.graphviz_chart(graph_code)
+        st.caption("The Inventory ETL process validates stock changes and updates Produkt.stanmagazynowy.")
 
     elif scenario_type == "Customers Import":
         graph_code = """
@@ -92,8 +114,12 @@ if uploaded_file:
         try:
             if ext == ".csv":
                 df = pd.read_csv(tmp_path)
-            else:
+            elif ext == ".json":
                 df = pd.read_json(tmp_path)
+            elif ext == ".xlsx":
+                df = pd.read_excel(tmp_path)
+            else:
+                raise ValueError(f"Unsupported file type: {ext}")
             st.dataframe(df.head(15), width="stretch")
             st.caption(f"Showing up to the first 15 rows of {uploaded_file.name}")
         except Exception as e:
@@ -144,6 +170,44 @@ if uploaded_file:
                                 label="⬇️ Download Rejects Report (.csv)",
                                 data=f,
                                 file_name="products_rejected.csv",
+                                mime="text/csv"
+                        )
+
+                # --- INVENTORY SCENARIO ---
+                elif scenario == "Inventory Update":
+                    rejects_path = f"{tmp_path}_rejects.csv"
+                    result = etl_inventory.run_etl(
+                        file_path=tmp_path,
+                        dry_run=dry_run,
+                        rejects_file=rejects_path
+                    )
+
+                    st.subheader("Execution Statistics")
+                    c1, c2, c3, c4 = st.columns(4)
+                    c1.metric("Rows Extracted", result.extracted)
+                    c2.metric("Valid Updates", result.validated)
+                    c3.metric("Loaded to DB", result.loaded if not dry_run else "Skipped (Dry Run)")
+                    c4.metric("Rejected", result.skipped,
+                              delta_color="inverse" if result.skipped > 0 else "normal")
+
+                    st.info(f"**Total Valid Stock Delta:** {result.total_stock_delta}")
+
+                    st.write("### Database Entity Updates")
+                    if dry_run:
+                        st.write(f"**Products that would be updated:** {result.validated}")
+                    else:
+                        st.write(f"**Updated Products:** {result.updated}")
+
+                    if result.skipped > 0 and result.rejected_file and os.path.exists(result.rejected_file):
+                        st.error(f"{result.skipped} rows were rejected due to validation errors.")
+                        rejects_df = pd.read_csv(result.rejected_file)
+                        st.dataframe(rejects_df, width="stretch")
+
+                        with open(result.rejected_file, "rb") as f:
+                            st.download_button(
+                                label="Download Rejects Report (.csv)",
+                                data=f,
+                                file_name="inventory_updates_rejected.csv",
                                 mime="text/csv"
                             )
 

@@ -35,7 +35,7 @@ GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO etl_user;
 
 ### Scenariusz ETL: zaawansowany import produktow z CSV
 
-Projekt zawiera proces ETL w pliku `etl_products_csv.py`.
+Projekt zawiera proces ETL w pliku `etl_products.py`.
 
 - Extract: odczyt danych z `data/products_feed.csv`.
 - Transform: normalizacja tekstu, walidacja pol liczbowych, pominiecie produktow nieaktywnych, odrzucenie blednych rekordow oraz deduplikacja produktow z tego samego pliku.
@@ -53,11 +53,58 @@ Laptop biznesowy,4299,12,Elektronika,Lenovo,Chiny,tak
 Sprawdzenie scenariusza bez zapisu do bazy:
 
 ```
-python etl_products_csv.py --dry-run
+python etl_products.py --dry-run
 ```
 
 Uruchomienie pelnego importu:
 
 ```
-python etl_products_csv.py
+python etl_products.py
+```
+
+### Scenariusz ETL: import klientow z CSV lub JSON
+
+Projekt zawiera proces ETL w pliku `etl_customers.py`.
+
+- Extract: odczyt danych z `data/customers_feed.csv` albo pliku JSON o tych samych polach.
+- Transform: oczyszczenie imienia, nazwiska, emaila, telefonu i danych adresowych oraz konwersja telefonu na liczbe.
+- Validation: rekordy, ktorych nie da sie sparsowac, sa pomijane na etapie transformacji.
+- Load: wyszukanie lub utworzenie adresu w tabeli `adrklienta`, a nastepnie dodanie albo aktualizacja klienta w tabeli `klient` po adresie email.
+
+Plik wejsciowy:
+
+```
+imie,nazwisko,email,telefon,miejscowosck,ulica,kodpocztowyk,krajk
+Liliana,Wisniewska,lilwis@test.pl,821885951,Biala Podlaska,Powstancow Wielkopolskich 34,60-009,Polska
+```
+
+Scenariusz jest dostepny w dashboardzie po wybraniu `Customers Import`.
+
+### Scenariusz ETL: aktualizacja stanow magazynowych
+
+Projekt zawiera proces ETL w pliku `etl_inventory.py`.
+
+- Extract: odczyt korekt z pierwszego arkusza pliku `data/inventory_updates_feed.xlsx`.
+- Transform: normalizacja nazw produktu i producenta, walidacja liczbowej zmiany stanu oraz agregacja wielu korekt tego samego produktu z jednego pliku.
+- Validation: sprawdzenie w bazie, czy produkt istnieje i czy korekta nie sprowadzi stanu magazynowego ponizej zera.
+- Rejects: zapis odrzuconych rekordow do `data/inventory_updates_rejected.csv`.
+- Load: aktualizacja pola `stanmagazynowy` w tabeli `produkt`.
+
+Plik wejsciowy `.xlsx` powinien zawierac kolumny:
+
+| nazwa | producent | zmiana_stanu | powod |
+| --- | --- | ---: | --- |
+| Laptop biznesowy | Lenovo | 5 | dostawa |
+| Monitor 27 cali | Dell | -2 | sprzedaz |
+
+Sprawdzenie scenariusza bez zapisu do bazy:
+
+```
+python etl_inventory.py --dry-run
+```
+
+Uruchomienie pelnej aktualizacji:
+
+```
+python etl_inventory.py
 ```

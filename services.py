@@ -5,6 +5,7 @@ from repositories import (
     get_or_create_category,
     get_or_create_producer,
     get_existing_product,
+    get_product_by_name_and_producer_name,
     # customers
     get_existing_address,
     create_address,
@@ -152,3 +153,38 @@ def synchronize_customer(
     stats["inserted"] = 1
 
     return stats
+
+
+def synchronize_inventory_update(
+    session,
+    inventory_record,
+    dry_run=False
+):
+    product = get_product_by_name_and_producer_name(
+        session,
+        inventory_record.nazwa,
+        inventory_record.producent
+    )
+
+    if not product:
+        raise ValueError(
+            "product not found for given product and producer"
+        )
+
+    current_stock = product.stanmagazynowy or 0
+    new_stock = current_stock + inventory_record.zmiana_stanu
+
+    if new_stock < 0:
+        raise ValueError(
+            "stock cannot become negative "
+            f"({current_stock} + {inventory_record.zmiana_stanu} = {new_stock})"
+        )
+
+    if not dry_run:
+        product.stanmagazynowy = new_stock
+
+    return {
+        "updated": 0 if dry_run else 1,
+        "stock_before": current_stock,
+        "stock_after": new_stock,
+    }

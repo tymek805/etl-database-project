@@ -69,6 +69,18 @@ def get_existing_product(session, name, producer_id):
     )
 
 
+def get_product_by_name_and_producer_name(session, product_name, producer_name):
+    return (
+        session.query(Produkt)
+        .join(Producent, Produkt.producentid == Producent.producentid)
+        .filter(
+            func.lower(Produkt.nazwa) == product_name.lower(),
+            func.lower(Producent.nazwa) == producer_name.lower()
+        )
+        .first()
+    )
+
+
 def get_existing_address(
     session,
     city,
