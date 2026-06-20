@@ -1,0 +1,42 @@
+[
+  {
+    "imie": "Klaudia",
+    "nazwisko": "Maciejewska",
+    "email": "klamac@test.pl",
+    "telefon": 733002543,
+    "miejscowosck": "Ilkowice",
+    "ulica": "Dąbrowskiego 52",
+    "kodpocztowyk": "54-556",
+    "krajk": "Polska"
+  },
+  {
+    "imie": "Bianka",
+    "nazwisko": "Janicka",
+    "email": "biajan@test.pl",
+    "telefon": 328744672,
+    "miejscowosck": "Turek",
+    "ulica": "Sobieskiego 94",
+    "kodpocztowyk": "82-107",
+    "krajk": "Polska"
+  },
+  {
+    "imie": "Joanna",
+    "nazwisko": "Baranowska",
+    "email": "joabar@test.pl",
+    "telefon": 621443254,
+    "miejscowosck": "Pułtusk",
+    "ulica": "Rynek 04",
+    "kodpocztowyk": "73-066",
+    "krajk": "Polska"
+  },
+  {
+    "imie": "Anna",
+    "nazwisko": "Włodarczyk",
+    "email": "annwlo@test.pl",
+    "telefon": 157227153,
+    "miejscowosck": "Władysławowo",
+    "ulica": "Kresowa 64",
+    "kodpocztowyk": "35-201",
+    "krajk": "Polska"
+  }
+]

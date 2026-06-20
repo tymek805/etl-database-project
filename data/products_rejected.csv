@@ -1,0 +1,3 @@
+aktywny,cena,kategoria,kraj_producenta,nazwa,producent,reason,row_number,stanmagazynowy
+tak,-10,Akcesoria,Szwajcaria,Produkt testowy,Logitech,price must be greater than zero,7,5
+nie,199,Siec,Chiny,Stary router,TP-Link,inactive product,8,0

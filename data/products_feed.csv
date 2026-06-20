@@ -1,0 +1,8 @@
+nazwa,cena,stanmagazynowy,kategoria,producent,kraj_producenta,aktywny
+Laptop biznesowy,4299,12,Elektronika,Lenovo,Chiny,tak
+Monitor 27 cali,1199,25,Elektronika,Dell,USA,tak
+Klawiatura mechaniczna,349,40,Akcesoria,Logitech,Szwajcaria,tak
+Klawiatura mechaniczna,329,5,Akcesoria,Logitech,Szwajcaria,tak
+Mysz bezprzewodowa,129,75,Akcesoria,Logitech,Szwajcaria,tak
+Produkt testowy,-10,5,Akcesoria,Logitech,Szwajcaria,tak
+Stary router,199,0,Siec,TP-Link,Chiny,nie
